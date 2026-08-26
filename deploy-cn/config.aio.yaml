@@ -1,0 +1,60 @@
+# ============================================================================
+# DeerFlow 部署配置模板（AIO 容器沙箱模式）
+# 使用时复制到仓库根目录 config.yaml。
+#
+# 与 config.local.yaml 的区别：sandbox.use 换成 AioSandboxProvider，
+# agent 的命令在隔离容器里执行。需要拉字节的 all-in-one-sandbox 镜像，
+# 该镜像在火山引擎公开仓库，国内公网一般拉不到（详见 README 第 6 节）。
+#
+# 只在你确定网络能访问火山引擎仓库、或已把镜像 docker load 进服务器时使用。
+# 否则请用 config.local.yaml（本地沙箱，无需拉沙箱镜像）。
+# ============================================================================
+
+config_version: 36
+
+log_level: info
+
+token_usage:
+  enabled: true
+
+token_budget:
+  enabled: false
+  max_tokens: 200000
+  max_input_tokens: null
+  max_output_tokens: null
+  warn_threshold: 0.8
+  hard_stop_threshold: 1.0
+
+max_recursion_limit: 1000
+
+# ── 模型配置（示例，改成你手上的模型）────────────────────────────────────────
+models:
+  - name: deepseek-v4
+    display_name: DeepSeek V4
+    use: deerflow.models.patched_openai:PatchedChatOpenAI
+    model: deepseek-v4
+    base_url: https://api.deepseek.com/v1
+    api_key: $DEEPSEEK_API_KEY
+    request_timeout: 600.0
+    max_retries: 2
+    max_tokens: 8192
+    context_window: 128000
+    supports_vision: false
+
+# ── 沙箱配置 —— AIO 容器沙箱 ────────────────────────────────────────────────
+# 注意 1：一定要显式指定 image，不要用默认的 :latest（那是冻结的旧版本）
+# 注意 2：该镜像是字节火山引擎公开仓库，公网通常拉不到
+sandbox:
+  use: deerflow.community.aio_sandbox:AioSandboxProvider
+  image: enterprise-public-cn-beijing.cr.volces.com/vefaas-public/all-in-one-sandbox:1.11.0
+  port: 8080
+  # replicas: 3
+  # container_prefix: deer-flow-sandbox
+
+# ── 上传配置 ────────────────────────────────────────────────────────────────
+uploads:
+  max_files: 10
+  max_file_size: 52428800
+  max_total_size: 104857600
+  auto_convert_documents: false
+  pdf_converter: auto

@@ -1,0 +1,86 @@
+# ============================================================================
+# DeerFlow 本地部署配置模板（本地沙箱模式，默认）
+# 使用时复制到仓库根目录 config.yaml。此文件已按国内环境精简，只保留能跑通的最小配置。
+#
+# 注意：
+# - config_version 必须与 config.example.yaml 保持一致（当前 36）。低版本会被判过期。
+# - 至少要配一个 models 段，否则 Gateway 启动后无法创建 agent。
+# - 本地沙箱 = 无需拉任何 Docker 沙箱镜像，最适合先跑通。
+# ============================================================================
+
+config_version: 36
+
+log_level: info
+
+# ── Token 使用 / 预算（保持默认）───────────────────────────────────────────
+token_usage:
+  enabled: true
+
+token_budget:
+  enabled: false
+  max_tokens: 200000
+  max_input_tokens: null
+  max_output_tokens: null
+  warn_threshold: 0.8
+  hard_stop_threshold: 1.0
+
+max_recursion_limit: 1000
+
+# ============================================================================
+# 模型配置 —— 至少要有一条非注释的模型，否则跑不起来
+# ============================================================================
+# 下面的 DeepSeek 是示例，请改成你手上有的模型 provider。
+# api_key 支持环境变量引用 $XXX（.env 里定义对应 key）。
+# api_base 如果使用国内代理/中转，填对应的 base_url。
+models:
+  - name: deepseek-v4
+    display_name: DeepSeek V4
+    use: deerflow.models.patched_openai:PatchedChatOpenAI
+    model: deepseek-v4
+    base_url: https://api.deepseek.com/v1
+    api_key: $DEEPSEEK_API_KEY
+    request_timeout: 600.0
+    max_retries: 2
+    max_tokens: 8192
+    context_window: 128000
+    supports_vision: false
+
+  # - name: doubao-seed-1.8
+  #   display_name: Doubao Seed 1.8
+  #   use: deerflow.models.patched_deepseek:PatchedChatDeepSeek
+  #   model: doubao-seed-1-8-251228
+  #   api_base: https://ark.cn-beijing.volces.com/api/v3
+  #   api_key: $VOLCENGINE_API_KEY
+  #   timeout: 600.0
+  #   max_retries: 2
+  #   context_window: 262144
+  #   supports_thinking: true
+  #   supports_vision: true
+
+# ============================================================================
+# 沙箱配置 —— 本地沙箱（LocalSandboxProvider）
+# 不需要拉任何 Docker 沙箱镜像，启动最快。agent 的 bash 在容器内执行，不隔离。
+# ============================================================================
+sandbox:
+  use: deerflow.sandbox.local:LocalSandboxProvider
+  # 本地沙箱不是安全隔离边界，默认禁止宿主机 bash，只允许受限工具。
+  allow_host_bash: false
+  bash_output_max_chars: 20000
+  read_file_output_max_chars: 50000
+  ls_output_max_chars: 20000
+  bash_command_timeout: 600
+
+# ============================================================================
+# 上传配置（默认即可）
+# ============================================================================
+uploads:
+  max_files: 10
+  max_file_size: 52428800
+  max_total_size: 104857600
+  auto_convert_documents: false
+  pdf_converter: auto
+
+# ============================================================================
+# 其余配置（保持默认即可，无需额外配置）
+# ============================================================================
+
