@@ -69,3 +69,11 @@ config.yaml.bak
 
 # Monocle agent-observability trace output (local file exporter)
 .monocle/
+
+# Deployment secrets & local temp artifacts (deploy-cn) — never commit
+deploy-cn/.env.server
+deploy-cn/*.server.yaml
+deploy-cn/*.local.log
+deploy-cn/logs/
+# One-off / diagnostic scripts (deploy-cn) — archive in git history only, not committed
+deploy-cn/diagnostics/
