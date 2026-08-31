@@ -1,0 +1,103 @@
+# ============================================================================
+# DeerFlow 服务器配置迁移模板 —— 以你当前环境（192.168.77.10）为基准
+#
+# 用途：把本项目迁移到【新的一台 Linux 服务器】时，复制本文件为
+#       /path/to/deer-flow/config.yaml，再按下列标注修改。
+#
+# 关键点：
+#   1. config_version 必须为 36（与官方 config.example.yaml 一致，否则启动被判过期）。
+#   2. 本模板包含 3 条模型：1 条 DeepSeek（走公网 API）+ 2 条 Ollama。
+#      迁移到新机器时，Ollama 的 base_url 是关键，见下方注释。
+#   3. api_key 支持环境变量引用 $XXX（需在仓库根 .env 定义同名变量）。
+#   4. 本地沙箱 = 无需拉字节 AIO 沙箱镜像，启动最快（默认）。
+# ============================================================================
+
+config_version: 36
+
+log_level: info
+
+# ── Token 使用 / 预算（保持默认）───────────────────────────────────────────
+token_usage:
+  enabled: true
+
+token_budget:
+  enabled: false
+  max_tokens: 200000
+  max_input_tokens: null
+  max_output_tokens: null
+  warn_threshold: 0.8
+  hard_stop_threshold: 1.0
+
+max_recursion_limit: 1000
+
+# ============================================================================
+# 模型配置 —— 至少一条非注释，否则跑不起来
+# ============================================================================
+models:
+  # ── 1. DeepSeek（公网 API，跨机器不变）───────────────────────────────────
+  - name: deepseek-v4-flash-vision-exp
+    display_name: DeepSeek V4 Flash Vision
+    use: deerflow.models.patched_openai:PatchedChatOpenAI
+    model: deepseek-v4-flash-vision-exp
+    base_url: https://api.deepseek.com/v1
+    api_key: $DEEPSEEK_API_KEY
+    request_timeout: 600.0
+    max_retries: 2
+    max_tokens: 8192
+    context_window: 128000
+    supports_vision: true
+
+  # ── 2. Ollama Qwen3.5 2B ─────────────────────────────────────────────────
+  # 关键：base_url 取决于 Ollama 装在哪里，二选一：
+  #   (A) Ollama 装在新服务器【本机】：用 host.docker.internal
+  #       base_url: http://host.docker.internal:11434/v1
+  #       （已在 docker-compose.yaml 配 extra_hosts + NO_PROXY，容器内可直达宿主）
+  #   (B) Ollama 仍装在【别的 Windows/其它机器】：填那台机器的内网 IP
+  #       base_url: http://<那台机器内网IP>:11434/v1
+  #   API key 填占位符 ollama 即可（Ollama 不校验 key，但 PatchedChatOpenAI 要求非空）。
+  - name: qwen3.5-2b-local
+    display_name: Qwen3.5 2B (Ollama)
+    use: deerflow.models.patched_openai:PatchedChatOpenAI
+    model: qwen3.5:2b
+    base_url: http://host.docker.internal:11434/v1   # 新服务器本机 Ollama
+    api_key: ollama
+    temperature: 0.7
+    context_window: 262144
+    supports_thinking: true
+    supports_vision: true
+
+  # ── 3. Ollama Qwen3.5 0.8B ───────────────────────────────────────────────
+  # base_url 同上，二选一。
+  - name: qwen3.5-08b-local
+    display_name: Qwen3.5 0.8B (Ollama)
+    use: deerflow.models.patched_openai:PatchedChatOpenAI
+    model: qwen3.5:0.8b
+    base_url: http://host.docker.internal:11434/v1   # 新服务器本机 Ollama
+    api_key: ollama
+    temperature: 0.7
+    context_window: 262144
+    supports_thinking: true
+    supports_vision: true
+
+  # ── 备用：只用 DeepSeek、不用 Ollama 时，删除上面 2、3 两条即可 ────────────
+
+# ============================================================================
+# 沙箱配置 —— 本地沙箱（LocalSandboxProvider），无需拉字节镜像
+# ============================================================================
+sandbox:
+  use: deerflow.sandbox.local:LocalSandboxProvider
+  allow_host_bash: false
+  bash_output_max_chars: 20000
+  read_file_output_max_chars: 50000
+  ls_output_max_chars: 20000
+  bash_command_timeout: 600
+
+# ============================================================================
+# 上传配置（默认）
+# ============================================================================
+uploads:
+  max_files: 10
+  max_file_size: 52428800
+  max_total_size: 104857600
+  auto_convert_documents: false
+  pdf_converter: auto

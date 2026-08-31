@@ -303,9 +303,13 @@ curl -s http://localhost:8001/health
 | `deploy.sh` | 主部署脚本（build / start / down） |
 | `config.local.yaml` | 后端配置模板（本地沙箱，默认） |
 | `config.aio.yaml` | 后端配置模板（AIO 容器沙箱，需拉字节镜像） |
-| `.env.template` | 环境变量模板（镜像源、代理、API Key） |
+| `config.template.yaml` | **迁移模板**（DeepSeek + Ollama，按当前环境提炼，见 `docs/MIGRATION.md`） |
+| `.env.template` | 环境变量模板（镜像源、代理、API Key、NO_PROXY） |
 | `docker-daemon-setup.sh` | 一键配置 Docker daemon 镜像加速/代理 |
 | `stop.sh` | 停止脚本（等价 `deploy.sh down`） |
+| `docs/MIGRATION.md` | **迁移到新服务器的配置清单与说明** |
+| `docs/部署指引.md` | 代理版部署指引 |
+| `scripts/` | 长期可复用运维脚本（代理/环境/密钥管理等） |
 | `README.md` | 本文件 |
 
 > 注意：`.env`、`config.yaml`、`extensions_config.json` 均被官方 `.gitignore`
