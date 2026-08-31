@@ -77,3 +77,5 @@ deploy-cn/*.local.log
 deploy-cn/logs/
 # One-off / diagnostic scripts (deploy-cn) — archive in git history only, not committed
 deploy-cn/diagnostics/
+# Deployed database snapshots (deploy-cn) — data artifacts, never commit
+deploy-cn/data/

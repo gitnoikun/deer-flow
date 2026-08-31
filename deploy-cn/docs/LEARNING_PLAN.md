@@ -73,7 +73,9 @@ app     (app/)                        → 应用层，FastAPI Gateway + IM 通�
 规则：app 可以 import deerflow，deerflow 不能 import app。
 ```
 
-**建议阅读文件**：
+> ⚠️ **别再一开始就硬啃英文源码**。先读 [TRACE_MAP.md](./TRACE_MAP.md) —— 它把「你发一句话 → 接口 → 各方法调用 → 最终落库」整条链路用 文件名+函数名+一句话 串起来了，你只要跟着这条链路走，就能直观理解 agent 怎么跑起来，再对照 Navicat 里的表验证落库。**看懂链路图后，再按下面目录按需深入。**
+
+**按需深入（先看链路图，再点这里）**：
 - `backend/packages/harness/deerflow/agents/` → 核心 agent 系统（`lead_agent/`、`thread_state.py`）
 - `backend/packages/harness/deerflow/subagents/` → 子 agent 委派（`executor.py`、`registry.py`）
 - `backend/packages/harness/deerflow/sandbox/` → 沙箱执行（`local/`、`tools.py`、`middleware.py`）
@@ -90,10 +92,11 @@ app     (app/)                        → 应用层，FastAPI Gateway + IM 通�
 ```
 
 #### 2.3 Agent 运行核心链路
-看 `backend/packages/harness/deerflow/runtime/` 的 `RunManager` + `run_agent()` + `StreamBridge`，
-理解一次对话如何被 agent 执行并以流式事件返回。
+直接看 [TRACE_MAP.md](./TRACE_MAP.md) 的第 2 节「完整链路」，它把 `start_run()` → `run_agent()` →
+落到 `runs`/`threads_meta`/`checkpoints`/`run_events` 的每一步都标出来了。不用读源码就能懂。
 
-**验证**：能画出上面 4 张图（分层、路由、运行时链路、工具/沙箱），并能说出每个目录职责。
+**验证**：按 TRACE_MAP 第 5 节，发一句话后去 Navicat 查那 4 张表，看到链路每一环确实落了库。
+    然后能画出：发请求 → 路由 → service → agent 执行 → 落库 这条主线，并说出每步对应哪个文件。
 
 ---
 
