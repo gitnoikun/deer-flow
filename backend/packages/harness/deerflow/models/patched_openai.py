@@ -21,13 +21,16 @@ message that originally carried them.
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from langchain_core.language_models import LanguageModelInput
-from langchain_core.messages import AIMessage
+from langchain_core.messages import AIMessage, BaseMessage
 from langchain_openai import ChatOpenAI
 
 from deerflow.models.assistant_payload_replay import restore_assistant_payloads
+
+logger = logging.getLogger(__name__)
 
 
 class PatchedChatOpenAI(ChatOpenAI):
@@ -80,6 +83,93 @@ class PatchedChatOpenAI(ChatOpenAI):
         restore_assistant_payloads(payload.get("messages", []), original_messages, _restore_tool_call_signatures)
 
         return payload
+
+    def _generate(self, messages: list[BaseMessage], stop: list[str] | None = None, **kwargs: Any) -> Any:
+        """Log the outgoing prompt and the returned result for OpenAI-compatible models."""
+        _log_llm_request(self, messages)
+        result = super()._generate(messages, stop=stop, **kwargs)
+        _log_llm_response(result)
+        return result
+
+    async def _agenerate(self, messages: list[BaseMessage], stop: list[str] | None = None, **kwargs: Any) -> Any:
+        """Log the outgoing prompt and the returned result (async)."""
+        _log_llm_request(self, messages)
+        result = await super()._agenerate(messages, stop=stop, **kwargs)
+        _log_llm_response(result)
+        return result
+
+    async def _astream(
+        self,
+        messages: list[BaseMessage],
+        stop: list[str] | None = None,
+        run_manager: Any = None,
+        *,
+        stream_usage: bool | None = None,
+        **kwargs: Any,
+    ) -> Any:
+        """Log the outgoing prompt and accumulate the streamed response text."""
+        _log_llm_request(self, messages)
+        parts: list[str] = []
+        async for chunk in super()._astream(
+            messages,
+            stop=stop,
+            run_manager=run_manager,
+            stream_usage=stream_usage,
+            **kwargs,
+        ):
+            try:
+                text = getattr(chunk, "text", "") or ""
+                if text:
+                    parts.append(text)
+            except Exception:  # pragma: no cover
+                pass
+            yield chunk
+        _log_llm_stream_response(parts)
+
+
+def _log_llm_request(model: "PatchedChatOpenAI", messages: list[BaseMessage]) -> None:
+    """Log the full outgoing model request (all messages, no truncation)."""
+    try:
+        model_name = getattr(model, "model_name", None) or getattr(model, "model", None) or "?"
+        logger.info("[LINK] LLM 请求 -> 模型=%s 消息数=%s", model_name, len(messages))
+        for i, msg in enumerate(messages):
+            role = getattr(msg, "type", "?")
+            content = str(getattr(msg, "content", "") or "")
+            logger.info(
+                "[LINK][DETAIL]   [%s/%s] role=%s content=%s",
+                i + 1,
+                len(messages),
+                role,
+                content,
+            )
+    except Exception:  # pragma: no cover
+        logger.debug("[LINK][DETAIL] 请求日志生成失败", exc_info=True)
+
+
+def _log_llm_response(result: Any) -> None:
+    """Log the full model response (no truncation)."""
+    try:
+        content = getattr(result, "generations", None)
+        if content:
+            text = content[0][0].text if content[0] else ""
+            kind = "ChatGeneration"
+        else:
+            text = str(result)
+            kind = type(result).__name__
+        logger.info("[LINK] LLM 响应 <- %s length=%s", kind, len(text))
+        logger.info("[LINK][DETAIL] LLM 响应全文:\n%s", text)
+    except Exception:  # pragma: no cover
+        logger.debug("[LINK][DETAIL] 响应日志生成失败", exc_info=True)
+
+
+def _log_llm_stream_response(parts: list[str]) -> None:
+    """Log the full accumulated text of a streamed model response (no truncation)."""
+    try:
+        joined = "".join(parts)
+        logger.info("[LINK] LLM 流式响应 <- length=%s", len(joined))
+        logger.info("[LINK][DETAIL] LLM 流式响应全文:\n%s", joined)
+    except Exception:  # pragma: no cover
+        logger.debug("[LINK][DETAIL] 流式响应日志生成失败", exc_info=True)
 
 
 def _restore_tool_call_signatures(payload_msg: dict, orig_msg: AIMessage) -> None:

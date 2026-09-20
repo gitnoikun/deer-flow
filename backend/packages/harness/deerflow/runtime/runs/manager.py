@@ -1612,6 +1612,14 @@ class RunManager:
                     }
                     if idempotency_key is not None:
                         create_kwargs["idempotency_key"] = idempotency_key
+                    logger.info(
+                        "[LINK][DB] 落库前 create_thread_operation_atomic(reject) run_id=%s thread_id=%s model=%s user=%s assistant=%s",
+                        run_id,
+                        thread_id,
+                        model_name,
+                        user_id,
+                        assistant_id,
+                    )
                     try:
                         await self._call_store_with_retry(
                             "create_thread_operation_atomic",
@@ -1650,6 +1658,15 @@ class RunManager:
                     max_retries = 3
                     for attempt in range(max_retries):
                         try:
+                            logger.info(
+                                "[LINK][DB] 落库前 create_thread_operation_atomic(%s) attempt=%s run_id=%s thread_id=%s model=%s user=%s",
+                                multitask_strategy,
+                                attempt,
+                                run_id,
+                                thread_id,
+                                model_name,
+                                user_id,
+                            )
                             await self._call_store_with_retry(
                                 "create_thread_operation_atomic",
                                 run_id,

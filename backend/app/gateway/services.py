@@ -1225,6 +1225,20 @@ async def start_run(
     # stamped auth context (internal/test compositions) skip the gate.
     require_cancel_permission_if(request, body.multitask_strategy != "reject")
 
+    _ctx = (getattr(body, "context", None) or {})
+    logger.info(
+        "[LINK] start_run 进入 thread_id=%s assistant_id=%s model_name=%s strategy=%s",
+        thread_id,
+        body.assistant_id,
+        _ctx.get("model_name"),
+        body.multitask_strategy,
+    )
+    try:
+        _input_dump = body.input if hasattr(body, "input") else None
+        logger.info("[LINK][DETAIL] start_run input 完整参数:\n%s", _input_dump)
+    except Exception:  # pragma: no cover
+        logger.debug("[LINK][DETAIL] start_run input 参数打印失败", exc_info=True)
+
     try:
         validate_thread_id(thread_id)
     except ValueError as exc:
@@ -1439,6 +1453,11 @@ async def start_run(
                 )
 
                 if record.idempotency_reused:
+                    logger.info(
+                        "[LINK] run 幂等复用 run_id=%s thread_id=%s",
+                        record.run_id,
+                        thread_id,
+                    )
                     return record
 
                 worker = run_after_metadata(record)
@@ -1449,6 +1468,12 @@ async def start_run(
                     # thread-store IO and still reach run_agent's startup
                     # barrier / stream finalization.
                     record.task = asyncio.create_task(worker)
+                    logger.info(
+                        "[LINK] run 已创建并挂载 worker run_id=%s thread_id=%s status=%s",
+                        record.run_id,
+                        thread_id,
+                        record.status,
+                    )
                 except Exception as exc:
                     worker.close()
                     await run_mgr.fail_start_if_pending(
@@ -1638,6 +1663,7 @@ async def sse_consumer(
     runs:cancel just by disconnecting).
     """
     last_event_id = request.headers.get("Last-Event-ID")
+    logger.info("[LINK] sse_consumer 开始回传 run_id=%s", record.run_id)
     if await _terminal_record_stream_missing(bridge, record):
         yield format_sse("end", None)
         return

@@ -866,6 +866,16 @@ async def stream_run(thread_id: ThreadId, body: RunCreateRequest, request: Reque
     """
     bridge = get_stream_bridge(request)
     run_mgr = get_run_manager(request)
+    logger.info(
+        "[LINK] stream_run 收到请求 thread_id=%s assistant_id=%s",
+        thread_id,
+        body.assistant_id,
+    )
+    try:
+        _body_dump = body.model_dump() if hasattr(body, "model_dump") else vars(body)
+    except Exception:  # pragma: no cover
+        _body_dump = str(body)
+    logger.info("[LINK][DETAIL] stream_run body 完整参数:\n%s", _body_dump)
     record = await start_run(body, thread_id, request)
 
     return StreamingResponse(
